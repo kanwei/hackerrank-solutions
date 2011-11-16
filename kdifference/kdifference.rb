@@ -10,7 +10,7 @@ nums.each_with_index { |n, i|
 		pairs += hash[n]
 		hash[n] = nil
 	end
-	[n+diff, n-diff].find_all{|x| x > 0 && x < 1000000000}.each {|neighbor|
+	[n+diff, n-diff].find_all{|x| x > 0}.each {|neighbor|
 		# puts "#{n}\t#{neighbor}"
 		hash[neighbor] ||= 0
 		hash[neighbor] += 1
