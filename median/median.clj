@@ -1,88 +1,65 @@
 (ns solution (:gen-class))
-(use 'clojure.test)
 
-(defn median-sorted-drop [xs]
-  (let [len (count xs)
-        secondhalf (drop (quot (dec len) 2) xs)]
-    (cond 
-      (zero? len) nil
-      (odd? len) (first secondhalf)
-      (even? len) (/ (reduce + (take 2 secondhalf)) 2))))
-
-(defn median-sorted [xs]
-  ; {:pre [(vector? xs)]}
-  (let [len (count xs)
-        v1 (quot (dec len) 2)]
-    (cond 
-      (zero? len) nil
-      (odd? len) (first (subvec xs v1 (inc v1)))
-      (even? len) (/ (reduce + (subvec xs v1 (+ 2 v1))) 2))))
-
-(deftest medians
-  (is (= (median-sorted []) nil))
-  (is (= (median-sorted [1]) 1))
-  (is (= (median-sorted [1,2]) 3/2)) ; 0, 2
-  (is (= (median-sorted [1,1,2]) 1)) ; 1, 2
-  (is (= (median-sorted [1,2,3,4]) 5/2)) ; 1, 3
-  (is (= (median-sorted [1 2 30 49 80 100]) 79/2))
-  (is (= (median-sorted [1,2,3,4,5]) 3)))
-
-(defn insert [n alon]
-  (loop [alon alon, result []]
+(defn median [^java.util.PriorityQueue max-heap ^java.util.PriorityQueue min-heap]
+  (let [max-size (.size max-heap)
+        min-size (.size min-heap)]
     (cond
-     (empty? alon) (conj result n)
-     (<= n (first alon)) (into result (cons n alon))
-     :else (recur (rest alon) (conj result (first alon))))))
+      (and (zero? max-size) (zero? min-size)) "Wrong!"
+      (== max-size min-size)
+        (/ (+ (.peek min-heap) (.peek max-heap)) 2)
+      :else (.peek max-heap))))
 
-(defn remove-first-slow [el xs]
-  (let [index_el (.indexOf xs el)]
-    (if (neg? index_el)
-      xs
-      (let [[fsplit ssplit] (split-at index_el xs)]
-        (concat fsplit (drop 1 ssplit))))))
+(defn balance-heap [^java.util.PriorityQueue max-heap ^java.util.PriorityQueue min-heap]
+  ; (println "balance: " max-heap min-heap)
+  (let [max-size (.size max-heap)
+        min-size (.size min-heap)]
+    (cond
+      (zero? max-size) nil
+      (> max-size (inc min-size))
+        (.add min-heap (.poll max-heap))
+      (and (pos? min-size) (> max-size min-size) (> (.peek max-heap) (.peek min-heap)))
+        (let [max-root (.poll max-heap)
+              min-root (.poll min-heap)]
+          (.add min-heap max-root)
+          (.add max-heap min-root))
+      (< max-size min-size)
+        (.add max-heap (.poll min-heap)))))
 
-(defn remove-first [el xs]
-  ; {:pre [(vector? xs)]}
-  (let [index_el (.indexOf xs el)]
-    (if (neg? index_el)
-      xs
-      (let [left (subvec xs 0 index_el)
-            right (subvec xs (inc index_el))]
-        (into left right)))))
-
-(deftest remove-firsts
-  (is (= (remove-first 1 [3,1,2,3,4]) [3,2,3,4]))
-  (is (= (remove-first 10 [3,1,2,3,4]) [3,1,2,3,4])))
-
-(defn solve-rec [lines numbers output]
-  ; (println lines numbers output)
-  (if (empty? lines) output
-    (let [rest_lines (rest lines)
+(defn solve-rec [lines ^java.util.PriorityQueue max-heap ^java.util.PriorityQueue min-heap answers]
+  ; (println max-heap min-heap (first lines) answers)
+  (if (empty? lines) 
+    answers
+    (let [rest-lines (rest lines)
           [op n_str] (clojure.string/split (first lines) #" ")
-          n (read-string n_str)]
-      (cond (= op "r")
-              (let [n_removed (remove-first n numbers)]
-                (if (or (empty? n_removed) (= numbers n_removed))
-                  (recur rest_lines n_removed (conj output "Wrong!"))
-                  (recur rest_lines n_removed (conj output (median-sorted n_removed)))))
-            (= op "a")
-              (let [new_numbers (insert n numbers)]
-                (recur rest_lines new_numbers (conj output (median-sorted new_numbers))))))))
+          n (Integer. n_str)]
+      (cond 
+        (= op "r")
+          (if-not (or (.remove max-heap n) (.remove min-heap n))
+            ; Can't find in either heap, move on
+            (recur rest-lines max-heap min-heap (conj answers "Wrong!"))
+            (do
+              (balance-heap max-heap min-heap)
+              (recur rest-lines max-heap min-heap (conj answers (median max-heap min-heap)))))
+        (= op "a")
+          (do 
+            (.add max-heap n)
+            (balance-heap max-heap min-heap)
+            (recur rest-lines max-heap min-heap (conj answers (median max-heap min-heap))))))))
 
 (defn format-answer [x]
   (if (instance? clojure.lang.Ratio x)
-    (let [s (format "%f" (double x))]
-      (apply str (reverse (drop-while #(= \0 %) (reverse s)))))
+    (apply str (reverse (drop-while #(= \0 %) (reverse (format "%f" (double x))))))
     (str x)))
 
 (defn solve [src]
   (let [f (line-seq (clojure.java.io/reader src))
-        nlines (read-string (first f))
-        answers (solve-rec (rest f) [] [])]
-    ; (dorun (map (comp println format-answer)))
-    ))
+        min-heap (java.util.PriorityQueue.)
+        max-heap (java.util.PriorityQueue. 10 (comparator (fn [x y] (> x y))))
+        answers (solve-rec (rest f) max-heap min-heap [])
+        print-answer (comp println format-answer)]
+    #_(doseq [a answers] (print-answer a))))
 
 (defn -main []
   (solve *in*))
 
-(time (solve "/Users/kanwei/Projects/istreet/median/input02.txt"))
+(time (solve "/Users/kanwei/Projects/istreet/median/input00.txt"))
