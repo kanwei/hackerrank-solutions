@@ -1,12 +1,12 @@
 (ns solution (:gen-class))
 
-(defn solve-rec [xs i n]
+(defn sum [xs] (reduce + xs))
+(defn solve 
+    ([xs n_friends] (solve (reverse (sort xs)) 0 n_friends))
+    ([xs i n]
     (if (empty? xs) 0
-        (+ (reduce + (map (partial * (+ 1 i)) (take n xs)))
-            (solve-rec (drop n xs) (+ 1 i) n))))
-
-(defn solve [xs n_friends]
-    (solve-rec (reverse (sort xs)) 0 n_friends))
+        (+ (sum (map (partial * (inc i)) (take n xs)))
+            (solve (drop n xs) (inc i) n)))))
 
 (defn read-to-ints [x] (map read-string (clojure.string/split x #" ")))
 (defn -main []
