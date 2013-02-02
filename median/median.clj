@@ -17,52 +17,54 @@
       (zero? max-size) nil
       (> max-size (inc min-size))
         (.add min-heap (.poll max-heap))
+      (< max-size min-size)
+        (.add max-heap (.poll min-heap))
       (and (pos? min-size) (> max-size min-size) (> (.peek max-heap) (.peek min-heap)))
         (let [max-root (.poll max-heap)
               min-root (.poll min-heap)]
           (.add min-heap max-root)
-          (.add max-heap min-root))
-      (< max-size min-size)
-        (.add max-heap (.poll min-heap)))))
+          (.add max-heap min-root)))))
 
 (defn format-answer [x]
   (if (instance? clojure.lang.Ratio x)
     (apply str (reverse (drop-while #(= \0 %) (reverse (format "%f" (double x))))))
     (str x)))
 
-(defn solve-rec [lines ^java.util.PriorityQueue max-heap ^java.util.PriorityQueue min-heap out]
-  ; (println max-heap min-heap (first lines))
-  (when-not (empty? lines)
-    (let [rest-lines (rest lines)
-          [op n_str] (clojure.string/split (first lines) #" ")
-          n (Integer. n_str)]
-      (cond 
-        (= op "r")
-          (if-not (or (.remove max-heap n) (.remove min-heap n))
-            ; Can't find in either heap, move on
-            (do
-              (.write out "Wrong!\n")
-              (recur rest-lines max-heap min-heap out))
-            (do
-              (balance-heap max-heap min-heap)
-              (.write out (format-answer (median max-heap min-heap)))
-              (.newLine out)
-              (recur rest-lines max-heap min-heap out)))
-        (= op "a")
-          (do 
-            (.add max-heap n)
-            (balance-heap max-heap min-heap)
-            (.write out (format-answer (median max-heap min-heap)))
-            (.newLine out)
-            (recur rest-lines max-heap min-heap out))))))
-
 (defn solve [src dest]
-  (let [f (line-seq (clojure.java.io/reader src))
+  (let [in (clojure.java.io/reader src)
         out (clojure.java.io/writer dest)
-        min-heap (java.util.PriorityQueue. 51000)
-        max-heap (java.util.PriorityQueue. 51000 (comparator (fn [x y] (> x y))))]
-    (solve-rec (rest f) max-heap min-heap out)
-    (.flush out)))
+        total-lines (.readLine in)
+        min-heap (java.util.PriorityQueue. 50005)
+        max-heap (java.util.PriorityQueue. 50005 (comparator (fn [x y] (> x y))))]
+    (try
+      (loop [seen {}]
+        (let [op (.read in)
+              space (.read in)
+              n (Integer/parseInt (.readLine in))]
+          (cond 
+            (== op 114) ; "r"
+              (if (and (contains? seen n)
+                        (if (<= n (.peek max-heap))
+                          (.remove max-heap n)
+                          (.remove min-heap n)))
+                (do
+                  (balance-heap max-heap min-heap)
+                  (.write out (format-answer (median max-heap min-heap)))
+                  (.newLine out)
+                  (recur seen))
+                ; Can't find in either heap, move on
+                (do
+                  (.write out "Wrong!\n")
+                  (recur seen)))
+            (== op 97) ; "a"
+              (do 
+                (.add max-heap n)
+                (balance-heap max-heap min-heap)
+                (.write out (format-answer (median max-heap min-heap)))
+                (.newLine out)
+                (recur (assoc seen n true))))))
+      (catch Exception e)
+      (finally (.flush out)))))
 
 (defn -main []
   (solve *in* *out*))
