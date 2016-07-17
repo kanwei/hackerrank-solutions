@@ -1,4 +1,4 @@
-module MissingNumbers where
+module Main where
 
 import qualified Data.Set as S
 import qualified Data.Map as M
@@ -29,6 +29,6 @@ main = do
     l1w <- getLine
     _ <- getLine
     l2w <- getLine
-    let freq1 = createFreqmap l1w 1 (M.fromList [])
-    let freq2 = createFreqmap l2w (-1) freq1
+    let freq1 = createFreqmap (mapStringsToInt l1w) 1 (M.fromList [])
+    let freq2 = createFreqmap (mapStringsToInt l2w) (-1) freq1
     putStrLn $ unwords $ map show $ M.keys $ noZeroes freq2
